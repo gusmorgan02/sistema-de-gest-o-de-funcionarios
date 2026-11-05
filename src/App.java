@@ -1,222 +1,215 @@
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.GridLayout;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableModel;
 
 public class App extends JFrame {
-
-    private JTextField txtNome, txtCargo, txtCarga, txtSalario, txtVa;
-    private JButton btnCadastrar, btnEditar, btnExcluir, btnLimpar;
     private JTable tabela;
     private DefaultTableModel modeloTabela;
-    private int idSelecionado = -1;
 
     public App() {
-        setTitle("Sistema de Funcionários - CRUD");
-        setSize(750, 550);
+        setTitle("Sistema de Funcionários - Listagem");
+        setSize(800, 400);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        
-
         setLayout(new BorderLayout(10, 10));
-
-        JPanel painelTopo = new JPanel(new BorderLayout());
-
-
-        JPanel panelForm = new JPanel(new GridLayout(5, 2, 8, 8));
-        panelForm.setBorder(BorderFactory.createTitledBorder("Dados do Funcionário"));
-
-        panelForm.add(new JLabel("Nome:"));
-        txtNome = new JTextField();
-        panelForm.add(txtNome);
-
-        panelForm.add(new JLabel("Cargo:"));
-        txtCargo = new JTextField();
-        panelForm.add(txtCargo);
-
-        panelForm.add(new JLabel("Carga Horária Semanal:"));
-        txtCarga = new JTextField();
-        panelForm.add(txtCarga);
-
-        panelForm.add(new JLabel("Salário Base:"));
-        txtSalario = new JTextField();
-        panelForm.add(txtSalario);
-
-        panelForm.add(new JLabel("Vale Alimentação:"));
-        txtVa = new JTextField();
-        panelForm.add(txtVa);
-
-        painelTopo.add(panelForm, BorderLayout.CENTER);
-
-
-        JPanel panelBotoes = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
-        
-        btnCadastrar = new JButton("Cadastrar");
-        btnEditar = new JButton("Editar");
-        btnExcluir = new JButton("Excluir");
-        btnLimpar = new JButton("Limpar Campos");
-
-
-        btnCadastrar.setBackground(new Color(135, 206, 250)); 
-        
-        panelBotoes.add(btnCadastrar);
-        panelBotoes.add(btnEditar);
-        panelBotoes.add(btnExcluir);
-        panelBotoes.add(btnLimpar);
-
-        painelTopo.add(panelBotoes, BorderLayout.SOUTH);
-
-
-        add(painelTopo, BorderLayout.NORTH);
 
         String[] colunas = {"ID", "Nome", "Cargo", "Carga Horária", "Salário (R$)", "VA (R$)", "Admissão"};
         modeloTabela = new DefaultTableModel(colunas, 0) {
             @Override
-            public boolean isCellEditable(int row, int column) {
-                return false; 
-            }
+            public boolean isCellEditable(int row, int column) { return false; }
         };
         tabela = new JTable(modeloTabela);
-        JScrollPane scrollPane = new JScrollPane(tabela);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Lista de Funcionários"));
-        
-        add(scrollPane, BorderLayout.CENTER);
+        add(new JScrollPane(tabela), BorderLayout.CENTER);
 
+        JPanel panelBotoes = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 10));
+        JButton btnCadastrar = new JButton("Cadastrar Novo");
+        JButton btnEditar = new JButton("Editar Selecionado");
+        JButton btnExcluir = new JButton("Excluir Selecionado");
 
-
-        configurarEventos();
-        garantirTabelaBanco();
-        carregarDadosTabela();
-    }
-
-    private void configurarEventos() {
-        tabela.addMouseListener(new java.awt.event.MouseAdapter() {
-            public void mouseClicked(java.awt.event.MouseEvent evt) {
-                int linha = tabela.getSelectedRow();
-                if (linha != -1) {
-                    idSelecionado = Integer.parseInt(modeloTabela.getValueAt(linha, 0).toString());
-                    txtNome.setText(modeloTabela.getValueAt(linha, 1).toString());
-                    txtCargo.setText(modeloTabela.getValueAt(linha, 2).toString());
-                    txtCarga.setText(modeloTabela.getValueAt(linha, 3).toString());
-                    txtSalario.setText(modeloTabela.getValueAt(linha, 4).toString());
-                    txtVa.setText(modeloTabela.getValueAt(linha, 5).toString());
-                }
-            }
-        });
+        panelBotoes.add(btnCadastrar);
+        panelBotoes.add(btnEditar);
+        panelBotoes.add(btnExcluir);
+        add(panelBotoes, BorderLayout.SOUTH);
 
         btnCadastrar.addActionListener(e -> {
-            try (Connection conn = FuncionarioDAO.conectar()) {
-                Date dataHoje = new Date(System.currentTimeMillis());
-                FuncionarioDAO.inserirFuncionaria(conn, txtNome.getText(), txtCargo.getText(), 
-                        Integer.parseInt(txtCarga.getText()), 
-                        Double.parseDouble(txtSalario.getText()), 
-                        Double.parseDouble(txtVa.getText()), dataHoje);
-                
-                limparCampos();
-                carregarDadosTabela();
-                JOptionPane.showMessageDialog(this, "Cadastrado com sucesso!");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro ao cadastrar. Verifique se digitou os números corretamente.");
-            }
+            new TelaCadastro(this, -1, "", "", "", "", "", "").setVisible(true);
+            carregarDadosTabela(); 
         });
 
         btnEditar.addActionListener(e -> {
-            if (idSelecionado == -1) {
-                JOptionPane.showMessageDialog(this, "Selecione um funcionário na tabela clicando nele primeiro.");
-                return;
-            }
-            try (Connection conn = FuncionarioDAO.conectar()) {
-                Date dataHoje = new Date(System.currentTimeMillis());
-                FuncionarioDAO.editarFuncionario(conn, idSelecionado, txtNome.getText(), txtCargo.getText(), 
-                        Integer.parseInt(txtCarga.getText()), 
-                        Double.parseDouble(txtSalario.getText()), 
-                        Double.parseDouble(txtVa.getText()), dataHoje);
-                
-                limparCampos();
-                carregarDadosTabela();
-                JOptionPane.showMessageDialog(this, "Atualizado com sucesso!");
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Erro ao editar. Verifique os dados.");
-            }
-        });
-
-        btnExcluir.addActionListener(e -> {
-            if (idSelecionado == -1) {
+            int linha = tabela.getSelectedRow();
+            if (linha == -1) {
                 JOptionPane.showMessageDialog(this, "Selecione um funcionário na tabela primeiro.");
                 return;
             }
+            
+            int id = Integer.parseInt(modeloTabela.getValueAt(linha, 0).toString());
+            String nome = String.valueOf(modeloTabela.getValueAt(linha, 1));
+            String cargo = String.valueOf(modeloTabela.getValueAt(linha, 2));
+            String carga = String.valueOf(modeloTabela.getValueAt(linha, 3));
+            String salario = String.valueOf(modeloTabela.getValueAt(linha, 4));
+            String va = String.valueOf(modeloTabela.getValueAt(linha, 5));
+            
+            Object objAdmissao = modeloTabela.getValueAt(linha, 6);
+            String admissao = (objAdmissao != null) ? objAdmissao.toString() : "";
+
+            new TelaCadastro(this, id, nome, cargo, carga, salario, va, admissao).setVisible(true);
+            carregarDadosTabela();
+        });
+
+        btnExcluir.addActionListener(e -> {
+            int linha = tabela.getSelectedRow();
+            if (linha == -1) {
+                JOptionPane.showMessageDialog(this, "Selecione um funcionário na tabela primeiro.");
+                return;
+            }
+            int id = Integer.parseInt(modeloTabela.getValueAt(linha, 0).toString());
             int confirmacao = JOptionPane.showConfirmDialog(this, "Tem certeza que deseja excluir?", "Confirmar", JOptionPane.YES_NO_OPTION);
             if (confirmacao == JOptionPane.YES_OPTION) {
                 try (Connection conn = FuncionarioDAO.conectar()) {
-                    FuncionarioDAO.excluirFuncionario(conn, idSelecionado);
-                    limparCampos();
+                    FuncionarioDAO.excluirFuncionario(conn, id);
                     carregarDadosTabela();
                     JOptionPane.showMessageDialog(this, "Excluído com sucesso!");
                 } catch (Exception ex) {
-                    JOptionPane.showMessageDialog(this, "Erro ao excluir.");
+                    JOptionPane.showMessageDialog(this, "Erro ao excluir: " + ex.getMessage());
                 }
             }
         });
 
-        btnLimpar.addActionListener(e -> limparCampos());
+        inicializarBanco();
+        carregarDadosTabela();
     }
 
-    private void limparCampos() {
-        txtNome.setText("");
-        txtCargo.setText("");
-        txtCarga.setText("");
-        txtSalario.setText("");
-        txtVa.setText("");
-        idSelecionado = -1;
-        tabela.clearSelection();
-    }
-
-    private void garantirTabelaBanco() {
+    private void inicializarBanco() {
         try (Connection conn = FuncionarioDAO.conectar()) {
-            if (conn != null) {
-                FuncionarioDAO.criarTabela(conn);
-            }
+            FuncionarioDAO.criarTabela(conn);
         } catch (Exception e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Erro ao criar banco: " + e.getMessage());
         }
     }
 
     private void carregarDadosTabela() {
-        modeloTabela.setRowCount(0); 
+        modeloTabela.setRowCount(0);
         String sql = "SELECT * FROM funcionarios";
-        
         try (Connection conn = FuncionarioDAO.conectar();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
-            
             while (rs.next()) {
                 modeloTabela.addRow(new Object[]{
-                    rs.getInt("id"),
-                    rs.getString("nome"),
-                    rs.getString("cargo"),
-                    rs.getInt("cargaHorariaSemanal"),
-                    rs.getDouble("salarioBase"),
-                    rs.getDouble("valeAlimentacao"),
-                    rs.getString("dataAdmissao")
+                    rs.getInt("id"), rs.getString("nome"), rs.getString("cargo"),
+                    rs.getInt("cargaHorariaSemanal"), rs.getDouble("salarioBase"),
+                    rs.getDouble("valeAlimentacao"), rs.getDate("dataAdmissao")
                 });
             }
         } catch (Exception e) {
-            System.err.println("Erro ao carregar tabela: " + e.getMessage());
+            JOptionPane.showMessageDialog(this, "Erro ao carregar tabela.");
         }
     }
 
     public static void main(String[] args) {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        SwingUtilities.invokeLater(() -> new App().setVisible(true));
+    }
+}
+
+
+class TelaCadastro extends JDialog {
+    private JTextField txtNome, txtCargo, txtCarga, txtSalario, txtVa, txtAdmissao;
+    private int idFuncionario; 
+
+    public TelaCadastro(JFrame parent, int id, String nome, String cargo, String carga, String salario, String va, String admissao) {
+        super(parent, id == -1 ? "Cadastrar Funcionário" : "Editar Funcionário", true);
+        this.idFuncionario = id;
+        setSize(400, 350);
+        setLocationRelativeTo(parent);
+        setLayout(new BorderLayout(10, 10));
+
+        JPanel panelForm = new JPanel(new GridLayout(6, 2, 8, 8));
+        panelForm.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+
+        panelForm.add(new JLabel("Nome:"));
+        txtNome = new JTextField(nome);
+        panelForm.add(txtNome);
+
+        panelForm.add(new JLabel("Cargo:"));
+        txtCargo = new JTextField(cargo);
+        panelForm.add(txtCargo);
+
+        panelForm.add(new JLabel("Carga Horária (h):"));
+        txtCarga = new JTextField(carga);
+        panelForm.add(txtCarga);
+
+        panelForm.add(new JLabel("Salário Base (ex: 2500.50):"));
+        txtSalario = new JTextField(salario);
+        panelForm.add(txtSalario);
+
+        panelForm.add(new JLabel("Vale Alimentação (ex: 400.00):"));
+        txtVa = new JTextField(va);
+        panelForm.add(txtVa);
+
+        panelForm.add(new JLabel("Admissão (AAAA-MM-DD):"));
+        txtAdmissao = new JTextField(admissao);
+        panelForm.add(txtAdmissao);
+
+        add(panelForm, BorderLayout.CENTER);
+
+        JButton btnSalvar = new JButton("Salvar");
+        btnSalvar.addActionListener(e -> salvarDados());
         
-        SwingUtilities.invokeLater(() -> {
-            new App().setVisible(true);
-        });
+        JPanel panelBotao = new JPanel();
+        panelBotao.add(btnSalvar);
+        add(panelBotao, BorderLayout.SOUTH);
+    }
+
+    private void salvarDados() {
+        if (txtNome.getText().trim().isEmpty() || txtCargo.getText().trim().isEmpty() ||
+            txtCarga.getText().trim().isEmpty() || txtSalario.getText().trim().isEmpty() ||
+            txtVa.getText().trim().isEmpty() || txtAdmissao.getText().trim().isEmpty()) {
+            
+            JOptionPane.showMessageDialog(this, "Por favor, preencha todos os campos.");
+            return;
+        }
+
+        try {
+            String nome = txtNome.getText().trim();
+            String cargo = txtCargo.getText().trim();
+            int cargaHoraria = Integer.parseInt(txtCarga.getText().trim());
+            double salario = Double.parseDouble(txtSalario.getText().trim().replace(",", "."));
+            double va = Double.parseDouble(txtVa.getText().trim().replace(",", "."));
+            Date dataAdmissao = Date.valueOf(txtAdmissao.getText().trim()); 
+
+            try (Connection conn = FuncionarioDAO.conectar()) {
+                if (idFuncionario == -1) {
+                    FuncionarioDAO.inserirFuncionario(conn, nome, cargo, cargaHoraria, salario, va, dataAdmissao);
+                    JOptionPane.showMessageDialog(this, "Cadastrado com sucesso!");
+                } else {
+                    FuncionarioDAO.editarFuncionario(conn, idFuncionario, nome, cargo, cargaHoraria, salario, va, dataAdmissao);
+                    JOptionPane.showMessageDialog(this, "Atualizado com sucesso!");
+                }
+                dispose(); 
+            }
+
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Erro: Carga Horária tem de ser número inteiro. Salário e VA em decimais.");
+        } catch (IllegalArgumentException ex) {
+            JOptionPane.showMessageDialog(this, "Erro: A data deve estar no formato AAAA-MM-DD (ex: 2026-10-25).");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Erro no banco de dados: " + ex.getMessage());
+        }
     }
 }
